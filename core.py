@@ -21,7 +21,8 @@ CONFIG_PADRAO = {
     "termo_sala": "Turma",          # "Turma" (escola) ou "Setor"/"Departamento" (empresa)
     "minutos_entre_registros": 5,
     "tema": "Claro",
-    "logo_path": "img/logo.png"
+    "logo_claro_path": "img/fatec_etec_fundo_claro_transparente.png",
+    "logo_escuro_path": "img/fatec_etec_modo_escuro_transparente.png"
 }
 
 # garante que as tabelas existam assim que este módulo é importado

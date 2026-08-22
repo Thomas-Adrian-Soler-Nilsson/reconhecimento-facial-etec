@@ -6,3 +6,4 @@ customtkinter
 pillow
 pytest
 iconipy
+pyinstaller

@@ -15,6 +15,7 @@ Sistema de reconhecimento facial com interface gráfica, feito com Python, OpenC
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Requisitos](#requisitos)
 - [Instalação](#instalação)
+- [Usar o executável Windows](#usar-o-executável-windows)
 - [Como usar (interface gráfica)](#como-usar-interface-gráfica--recomendado)
 - [Como usar (scripts de terminal)](#como-usar-scripts-de-terminal--alternativa)
 - [Configurações ajustáveis](#configurações-ajustáveis-dentro-de-reconhecerpy)
@@ -32,12 +33,23 @@ projeto_facial/
 ├── ui/                       # tema e componentes reutilizáveis da interface
 │   ├── __init__.py           # definição do pacote de interface
 │   ├── theme.py              # cores, fontes e dimensões visuais
-│   └── components.py         # botões, painéis e helpers de UI
+│   ├── components.py         # botões, painéis e helpers de UI
+│   └── screens/              # telas da interface gráfica
+│       ├── common.py         # helpers compartilhados pelas telas
+│       ├── inicio.py
+│       ├── cadastro.py
+│       ├── pessoas.py
+│       ├── salas.py
+│       ├── registro_individual.py
+│       ├── registro_grupo.py
+│       ├── relatorios.py
+│       ├── importar_csv.py
+│       └── configuracoes.py
 ├── docs/                     # especificações e planos de evolução do projeto
 │   └── superpowers/
 │       ├── plans/
 │       └── specs/
-├── app.py                    # interface gráfica principal
+├── app.py                    # janela principal, navegação e câmera
 ├── core.py                   # lógica compartilhada: reconhecimento e regras da aplicação
 ├── db.py                     # persistência e consultas do banco SQLite
 ├── models.py                 # modelos de dados do sistema
@@ -55,7 +67,7 @@ projeto_facial/
 └── README.md                 # documentação do projeto
 ```
 
-A logo da organização é carregada por padrão de `img/logo.png`. Para usar outra imagem, altere o campo `logo_path` no `config.json`.
+A logo da organização muda conforme o tema: `img/fatec_etec_fundo_claro_transparente.png` no modo claro e `img/fatec_etec_modo_escuro_transparente.png` no modo escuro. Para usar outras imagens, altere `logo_claro_path` e `logo_escuro_path` no `config.json`.
 
 > Os scripts de linha de comando em `scripts/` continuam funcionando e são úteis para testes rápidos, mas o `app.py` reúne tudo isso numa única interface gráfica e é a forma recomendada de uso.
 
@@ -140,6 +152,35 @@ Isso abre a janela principal do sistema, com um menu lateral:
 - **⚙️ Configurações** — define o nome da instituição/empresa, se é "Escola" ou "Empresa" (aparece no cabeçalho), o tema claro/escuro, o intervalo mínimo entre registros repetidos, e permite limpar o cache de reconhecimento manualmente.
 
 > **Primeira execução:** assim como nos scripts de terminal, o DeepFace baixa os pesos dos modelos na primeira vez que uma foto é processada — pode levar um tempinho sem feedback visual, é normal.
+
+## Usar o executável Windows
+
+Para usar uma versão já compilada, copie a pasta completa `dist/SistemaPresenca` para o computador Windows e abra:
+
+```text
+SistemaPresenca/SistemaPresenca.exe
+```
+
+Não copie apenas o arquivo `.exe`: a pasta `_internal/` contém bibliotecas necessárias para o funcionamento do sistema. A webcam precisa estar conectada e a primeira execução pode exigir internet para baixar os pesos do DeepFace.
+
+Os dados da instalação ficam na mesma pasta de execução:
+
+- `database/` — fotos cadastradas;
+- `sistema_presenca.db` — pessoas, turmas e registros de presença;
+- `config.json` — configurações, tema e caminho da logo;
+- `registros.csv` — arquivos CSV importados ou relatórios exportados.
+
+Faça cópias de segurança desses arquivos antes de trocar ou remover a pasta do sistema.
+
+## Gerar o executável Windows
+
+Esta seção é destinada a quem mantém o projeto. Com o ambiente virtual configurado, execute no PowerShell:
+
+```powershell
+.\build_exe.ps1
+```
+
+O executável será criado em `dist/SistemaPresenca/SistemaPresenca.exe`. Distribua a pasta inteira `dist/SistemaPresenca`, não apenas o arquivo `.exe`.
 
 ## Como usar (scripts de terminal — alternativa)
 
