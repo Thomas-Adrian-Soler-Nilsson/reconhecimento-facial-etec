@@ -29,6 +29,14 @@ config.json
 .idea/
 *.swp
 
+# Worktrees temporários de desenvolvimento
+.worktrees/
+.superpowers
 # Sistema operacional
 Thumbs.db
 desktop.ini
+
+docs/
+docs
+sistema_presenca.db
+database

@@ -1,9 +1,10 @@
 import cv2
-import os
 
-def cadastrar_pessoa(nome):
-    pasta = os.path.join("database", nome)
-    os.makedirs(pasta, exist_ok=True)
+import core
+
+
+def cadastrar_pessoa(nome_exibicao, sala=""):
+    nome_chave = nome_exibicao.strip().lower().replace(" ", "_")
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -19,15 +20,14 @@ def cadastrar_pessoa(nome):
             print("Erro ao capturar frame da webcam.")
             break
 
-        cv2.imshow(f"Cadastro - {nome}", frame)
+        cv2.imshow(f"Cadastro - {nome_exibicao}", frame)
         key = cv2.waitKey(1) & 0xFF
 
         if key == 27:  # ESC
             break
         elif key == 32:  # ESPAÇO
+            caminho = core.salvar_foto_cadastro(nome_chave, frame)
             contador += 1
-            caminho = os.path.join(pasta, f"{nome}_{contador}.jpg")
-            cv2.imwrite(caminho, frame)
             print(f"[OK] Foto salva: {caminho}")
 
     cap.release()
@@ -35,12 +35,24 @@ def cadastrar_pessoa(nome):
 
     if contador == 0:
         print("Nenhuma foto foi salva.")
-    else:
-        print(f"\nCadastro finalizado. {contador} foto(s) salva(s) para '{nome}'.")
+        return
+
+    # grava/atualiza nome de exibição e sala/turma no banco
+    core.definir_pessoa_meta(nome_chave, nome_exibicao=nome_exibicao, sala=sala)
+    core.limpar_cache_embeddings()
+
+    print(f"\nCadastro finalizado. {contador} foto(s) salva(s) para '{nome_exibicao}'.")
+    if sala:
+        print(f"Associado à sala/turma: {sala}")
+
 
 if __name__ == "__main__":
-    nome = input("Digite o nome da pessoa a cadastrar: ").strip().lower().replace(" ", "_")
-    if nome:
-        cadastrar_pessoa(nome)
-    else:
+    nome = input("Digite o nome da pessoa a cadastrar: ").strip()
+    if not nome:
         print("Nome inválido.")
+    else:
+        salas_existentes = core.carregar_salas()
+        if salas_existentes:
+            print("Salas/turmas cadastradas:", ", ".join(salas_existentes))
+        sala = input("Sala/turma (opcional, Enter para pular): ").strip()
+        cadastrar_pessoa(nome, sala=sala)

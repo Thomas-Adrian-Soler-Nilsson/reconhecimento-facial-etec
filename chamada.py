@@ -1,65 +1,19 @@
 import cv2
-import os
-import csv
-from datetime import datetime
-from deepface import DeepFace
 
-DB_PATH = "database"
-LOG_PATH = "registros.csv"
-MODEL_NAME = "Facenet"
-DETECTOR_BACKEND = "mtcnn"
-PROCESSAR_A_CADA_N_FRAMES = 15  # equilíbrio entre fluidez da câmera e velocidade de reconhecimento
+import core
 
-
-def garantir_csv():
-    """Cria o CSV com cabeçalho se ele ainda não existir."""
-    if not os.path.exists(LOG_PATH):
-        with open(LOG_PATH, mode="w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["nome", "data", "hora", "timestamp"])
-
-
-def registrar_presenca(nome):
-    """Grava uma nova linha no CSV com nome, data e hora."""
-    agora = datetime.now()
-    with open(LOG_PATH, mode="a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            nome,
-            agora.strftime("%d/%m/%Y"),
-            agora.strftime("%H:%M:%S"),
-            agora.isoformat()
-        ])
-
-
-def identificar_pessoa(frame):
-    """Roda o DeepFace no frame e retorna o nome identificado ou None."""
-    try:
-        resultados = DeepFace.find(
-            img_path=frame,
-            db_path=DB_PATH,
-            model_name=MODEL_NAME,
-            detector_backend=DETECTOR_BACKEND,
-            enforce_detection=False,
-            silent=True
-        )
-
-        if len(resultados) > 0 and not resultados[0].empty:
-            identidade = resultados[0].iloc[0]["identity"]
-            return identidade.split(os.sep)[-2]
-
-    except Exception:
-        pass
-
-    return None
+PROCESSAR_A_CADA_N_FRAMES = 15
 
 
 def chamada_webcam():
-    if not os.path.exists(DB_PATH) or not os.listdir(DB_PATH):
-        print(f"Pasta '{DB_PATH}' vazia ou não existe. Cadastre pessoas primeiro com cadastrar.py")
+    if not core.listar_pessoas_cadastradas():
+        print("Nenhuma pessoa cadastrada ainda. Use cadastrar.py primeiro.")
         return
 
-    garantir_csv()
+    salas_existentes = core.carregar_salas()
+    if salas_existentes:
+        print("Salas/turmas cadastradas:", ", ".join(salas_existentes))
+    sala = input("Sala/turma desta chamada (opcional, Enter para pular): ").strip()
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -74,7 +28,7 @@ def chamada_webcam():
     print("Pressione ESC para encerrar a chamada.")
     print("=" * 55)
 
-    ja_registrados_na_sessao = set()  # evita duplicar a mesma pessoa na mesma chamada
+    ja_registrados_na_sessao = set()
     nome_atual = "Procurando rosto..."
     cor_atual = (200, 200, 200)
     frame_count = 0
@@ -88,24 +42,23 @@ def chamada_webcam():
         frame_count += 1
 
         if frame_count % PROCESSAR_A_CADA_N_FRAMES == 0:
-            nome = identificar_pessoa(frame)
+            nome_chave = core.identificar_pessoa(frame, exigir_rosto=False)
 
-            if nome is None:
+            if nome_chave is None:
                 nome_atual = "Desconhecido"
                 cor_atual = (0, 0, 255)
 
-            elif nome in ja_registrados_na_sessao:
-                nome_atual = f"{nome} (ja registrado)"
+            elif nome_chave in ja_registrados_na_sessao:
+                nome_atual = f"{nome_chave} (ja registrado)"
                 cor_atual = (0, 165, 255)
 
             else:
-                registrar_presenca(nome)
-                ja_registrados_na_sessao.add(nome)
-                nome_atual = f"{nome} - REGISTRADO!"
+                core.registrar_presenca(nome_chave, tipo="Chamada em grupo", sala=sala)
+                ja_registrados_na_sessao.add(nome_chave)
+                nome_atual = f"{nome_chave} - REGISTRADO!"
                 cor_atual = (0, 255, 0)
-                print(f"[OK] Presença registrada: {nome}  ({len(ja_registrados_na_sessao)} pessoa(s) na sessão)")
+                print(f"[OK] Presença registrada: {nome_chave}  ({len(ja_registrados_na_sessao)} pessoa(s) na sessão)")
 
-        # Barra de status fixa
         cv2.rectangle(frame, (0, 0), (frame.shape[1], 40), (40, 40, 40), -1)
         cv2.putText(frame, f"Registrados nesta sessao: {len(ja_registrados_na_sessao)} | ESC = encerrar",
                     (10, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)

@@ -26,21 +26,29 @@ Sistema de reconhecimento facial com interface gráfica, feito com Python, OpenC
 
 ```
 projeto_facial/
-├── database/            # fotos das pessoas cadastradas (criado automaticamente)
-│   ├── thomas/
-│   │   └── thomas_1.jpg
-│   └── thomas2/
-│       └── thomas2_1.jpg
-├── venv/                 # ambiente virtual Python (criado na instalação)
-├── core.py               # lógica compartilhada: reconhecimento, config e registros
-├── app.py                # ⭐ interface gráfica principal (use este para o dia a dia)
-├── config.json            # configurações da organização (criado automaticamente)
-├── registros.csv          # log de presenças (criado automaticamente)
-├── cadastrar.py           # script de linha de comando (cadastro via terminal)
-├── reconhecer.py          # script de linha de comando (reconhecimento contínuo)
-├── ponto.py               # script de linha de comando (registro individual sob demanda)
-├── chamada.py             # script de linha de comando (chamada em grupo)
-└── README.md
+├── database/                 # fotos das pessoas cadastradas (dados locais, ignorados pelo Git)
+├── ui/                       # tema e componentes reutilizáveis da interface
+│   ├── __init__.py           # definição do pacote de interface
+│   ├── theme.py              # cores, fontes e dimensões visuais
+│   └── components.py         # botões, painéis e helpers de UI
+├── docs/                     # especificações e planos de evolução do projeto
+│   └── superpowers/
+│       ├── plans/
+│       └── specs/
+├── app.py                    # interface gráfica principal
+├── core.py                   # lógica compartilhada: reconhecimento e regras da aplicação
+├── db.py                     # persistência e consultas do banco SQLite
+├── models.py                 # modelos de dados do sistema
+├── cadastrar.py              # cadastro de pessoas via terminal
+├── reconhecer.py             # reconhecimento facial contínuo via terminal
+├── ponto.py                  # registro individual de presença via terminal
+├── chamada.py                # chamada em grupo via terminal
+├── config.json               # configurações locais da organização
+├── sistema_presenca.db       # banco SQLite local (gerado automaticamente)
+├── registros.csv             # arquivo de importação/exportação de registros
+├── requirements.txt          # dependências Python
+├── LICENSE                   # licença MIT
+└── README.md                 # documentação do projeto
 ```
 
 > Os scripts de linha de comando (`cadastrar.py`, `reconhecer.py`, `ponto.py`, `chamada.py`) continuam funcionando e são úteis para testes rápidos, mas o `app.py` reúne tudo isso numa única interface gráfica e é a forma recomendada de uso.
@@ -90,7 +98,7 @@ Com o venv ativado, o prompt deve começar com `(venv)`.
 
 ```powershell
 python -m pip install --upgrade pip
-pip install tensorflow deepface tf-keras opencv-python==4.10.0.84 customtkinter pillow
+pip install -r requirements.txt
 ```
 
 | Pacote | Para que serve |
@@ -101,6 +109,7 @@ pip install tensorflow deepface tf-keras opencv-python==4.10.0.84 customtkinter 
 | `opencv-python` | captura e exibição de vídeo da webcam (fixado na `4.10.0.84`, pois versões `5.x` vieram com bug faltando arquivos internos) |
 | `customtkinter` | interface gráfica moderna (usada pelo `app.py`) |
 | `pillow` | conversão dos frames da webcam para exibição na interface gráfica |
+| `iconipy` | geração dos ícones usados nos botões da interface |
 
 ## Como usar (interface gráfica — recomendado)
 
@@ -116,9 +125,11 @@ Isso abre a janela principal do sistema, com um menu lateral:
 
 - **🏠 Início** — visão geral: quantas pessoas estão cadastradas, quantos registros já existem.
 - **➕ Cadastrar Pessoa** — abre a câmera, digite o nome e clique em "Capturar foto" (repita 3–5 vezes). O cache de reconhecimento é limpo automaticamente a cada novo cadastro.
+- **🏫 Salas / Turmas** — cadastra e remove salas ou turmas usadas nos registros.
 - **✅ Registrar Presença** — modo individual: a pessoa se posiciona na câmera, escolhe "Entrada" ou "Saída" e clica em Registrar. Ideal para um totem ou recepção.
 - **👥 Chamada em Grupo** — modo contínuo: clique em "Iniciar chamada" e a câmera reconhece automaticamente cada pessoa que passar, registrando uma vez por sessão. Clique em "Encerrar chamada" ao final. Ideal para início de aula/reunião.
 - **📊 Relatórios** — lista todos os registros salvos (nome, tipo, data, hora), com botão de atualizar.
+- **📥 Importar Pessoas (CSV)** — importa nomes, salas e RA/matrícula de um arquivo CSV, com mapeamento manual das colunas.
 - **⚙️ Configurações** — define o nome da instituição/empresa, se é "Escola" ou "Empresa" (aparece no cabeçalho), o intervalo mínimo entre registros repetidos, e permite limpar o cache de reconhecimento manualmente.
 
 > **Primeira execução:** assim como nos scripts de terminal, o DeepFace baixa os pesos dos modelos na primeira vez que uma foto é processada — pode levar um tempinho sem feedback visual, é normal.
@@ -170,7 +181,7 @@ PROCESSAR_A_CADA_N_FRAMES = 15   # a cada quantos frames roda o reconhecimento
 
 ## Cadastrando novas pessoas depois de já ter usado o reconhecimento
 
-O DeepFace cria um arquivo de cache `.pkl` dentro de `database/` na primeira vez que roda `reconhecer.py`, para acelerar comparações futuras. Se você cadastrar uma pessoa nova, **apague esse arquivo `.pkl`** antes de rodar `reconhecer.py` de novo — senão a pessoa nova não será reconhecida.
+O DeepFace pode criar um arquivo de cache `.pkl` dentro de `database/` para acelerar comparações futuras. Se uma pessoa nova não for reconhecida, limpe esse cache antes de executar o reconhecimento novamente.
 
 ```powershell
 del database\*.pkl
@@ -189,7 +200,7 @@ del database\*.pkl
 
 ## Próximos passos possíveis
 
-- Salvar embeddings em banco de dados (SQLite/PostgreSQL) em vez de comparar imagens a cada execução
+- Aprimorar a gestão de embeddings e o desempenho do reconhecimento
 - Expor o reconhecimento como API (FastAPI/Flask)
 - Adicionar registro de log de acessos (quem foi reconhecido e quando)
 - Separar registros por turma/matéria ou por setor da empresa

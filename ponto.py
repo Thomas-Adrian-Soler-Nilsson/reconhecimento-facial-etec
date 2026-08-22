@@ -1,83 +1,20 @@
 import cv2
-import os
-import csv
-from datetime import datetime
-from deepface import DeepFace
 
-DB_PATH = "database"
-LOG_PATH = "registros.csv"
-MODEL_NAME = "Facenet"
-DETECTOR_BACKEND = "mtcnn"
-MINUTOS_ENTRE_REGISTROS = 5  # evita registrar a mesma pessoa 2x seguidas em pouco tempo
-
-
-def garantir_csv():
-    """Cria o CSV com cabeçalho se ele ainda não existir."""
-    if not os.path.exists(LOG_PATH):
-        with open(LOG_PATH, mode="w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["nome", "data", "hora", "timestamp"])
-
-
-def ja_registrado_recentemente(nome):
-    """Verifica se essa pessoa já foi registrada nos últimos N minutos."""
-    if not os.path.exists(LOG_PATH):
-        return False
-
-    agora = datetime.now()
-    with open(LOG_PATH, mode="r", encoding="utf-8") as f:
-        linhas = list(csv.DictReader(f))
-
-    for linha in reversed(linhas):
-        if linha["nome"] == nome:
-            registrado_em = datetime.fromisoformat(linha["timestamp"])
-            diferenca_min = (agora - registrado_em).total_seconds() / 60
-            return diferenca_min < MINUTOS_ENTRE_REGISTROS
-
-    return False
-
-
-def registrar_presenca(nome):
-    """Grava uma nova linha no CSV com nome, data e hora."""
-    agora = datetime.now()
-    with open(LOG_PATH, mode="a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            nome,
-            agora.strftime("%d/%m/%Y"),
-            agora.strftime("%H:%M:%S"),
-            agora.isoformat()
-        ])
-
-
-def identificar_pessoa(frame):
-    """Roda o DeepFace no frame e retorna o nome identificado ou None."""
-    try:
-        resultados = DeepFace.find(
-            img_path=frame,
-            db_path=DB_PATH,
-            model_name=MODEL_NAME,
-            detector_backend=DETECTOR_BACKEND,
-            enforce_detection=True,  # aqui queremos garantir que É um rosto
-            silent=True
-        )
-
-        if len(resultados) > 0 and not resultados[0].empty:
-            identidade = resultados[0].iloc[0]["identity"]
-            return identidade.split(os.sep)[-2]
-
-    except Exception as e:
-        print(f"[Aviso] Não foi possível identificar um rosto: {e}")
-
-    return None
+import core
 
 
 def ponto_webcam():
-    if not os.path.exists(DB_PATH) or not os.listdir(DB_PATH):
-        print(f"Pasta '{DB_PATH}' vazia ou não existe. Cadastre pessoas primeiro com cadastrar.py")
+    if not core.listar_pessoas_cadastradas():
+        print("Nenhuma pessoa cadastrada ainda. Use cadastrar.py primeiro.")
         return
 
-    garantir_csv()
+    cfg = core.carregar_config()
+    minutos = cfg.get("minutos_entre_registros", 5)
+
+    salas_existentes = core.carregar_salas()
+    if salas_existentes:
+        print("Salas/turmas cadastradas:", ", ".join(salas_existentes))
+    sala = input("Sala/turma deste registro (opcional, Enter para pular): ").strip()
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -101,11 +38,9 @@ def ponto_webcam():
             print("Erro ao capturar frame da webcam.")
             break
 
-        # Mostra instrução fixa no topo
         cv2.putText(frame, "ESPACO = registrar | ESC = sair", (20, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
-        # Mostra mensagem temporária de resultado (últimos ~60 frames, ~2s)
         if frames_mensagem_restantes > 0:
             cv2.putText(frame, mensagem, (20, 70),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, cor_mensagem, 2)
@@ -119,23 +54,23 @@ def ponto_webcam():
 
         elif key == 32:  # ESPAÇO
             print("Identificando...")
-            nome = identificar_pessoa(frame)
+            nome_chave = core.identificar_pessoa(frame, exigir_rosto=True)
 
-            if nome is None:
+            if nome_chave is None:
                 mensagem = "Rosto nao reconhecido"
                 cor_mensagem = (0, 0, 255)
                 print("[X] Rosto não reconhecido / não cadastrado.")
 
-            elif ja_registrado_recentemente(nome):
-                mensagem = f"{nome} ja registrado (aguarde)"
+            elif core.ja_registrado_recentemente(nome_chave, minutos, sala=sala or None):
+                mensagem = f"{nome_chave} ja registrado (aguarde)"
                 cor_mensagem = (0, 165, 255)
-                print(f"[!] {nome} já registrado há menos de {MINUTOS_ENTRE_REGISTROS} min.")
+                print(f"[!] {nome_chave} já registrado há menos de {minutos} min.")
 
             else:
-                registrar_presenca(nome)
-                mensagem = f"Presenca registrada: {nome}"
+                core.registrar_presenca(nome_chave, tipo="Entrada", sala=sala)
+                mensagem = f"Presenca registrada: {nome_chave}"
                 cor_mensagem = (0, 255, 0)
-                print(f"[OK] Presença registrada para: {nome}")
+                print(f"[OK] Presença registrada para: {nome_chave}")
 
             frames_mensagem_restantes = 60
 

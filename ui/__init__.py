@@ -1,0 +1,1 @@
+"""Componentes e tokens visuais da interface gráfica."""
