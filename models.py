@@ -1,58 +1,63 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class Pessoa:
-    """Pessoa cadastrada para uso no sistema de presença."""
+    """Pessoa cadastrada no sistema de presença."""
 
-    id: str
+    identificador: str
     nome: str
-    turma_id: str
-    matricula: str
+    categoria: str
+    turma_ou_setor: str
     ativo: bool = True
+    fotos: list[str] = field(default_factory=list)
 
 
 @dataclass
 class Turma:
-    """Turma ou grupo de referência para vincular pessoas e sessões."""
+    """Turma cadastrada para uso no sistema."""
 
-    id: str
+    identificador: str
     nome: str
-    ano_letivo: str
-    descricao: str = ""
+    categoria: str = ""
+    ativo: bool = True
 
 
 @dataclass
 class Sala:
-    """Sala física usada nas sessões de presença."""
+    """Sala cadastrada para uso no sistema."""
 
-    id: str
+    identificador: str
     nome: str
-    capacidade: int
-    local: str = ""
+    capacidade: int = 0
+    ativo: bool = True
 
 
 @dataclass
 class Sessao:
-    """Sessão de chamada, associada a uma turma e uma sala."""
+    """Sessão de presença com início e fim opcionais."""
 
-    id: str
-    turma_id: str
-    sala_id: str
-    inicio: str
-    fim: str
-    ativa: bool = True
+    identificador: str
+    tipo_operacao: str
+    sala: str
+    turma_ou_setor: str
+    responsavel_id: str
+    inicio_data: str
+    inicio_hora: str
+    fim_data: str | None = None
+    fim_hora: str | None = None
 
 
 @dataclass
 class Registro:
-    """Registro individual de presença de uma pessoa em uma sessão."""
+    """Registro de presença com status, presença e resultado de reconhecimento."""
 
-    id: str
+    identificador: str
     sessao_id: str
     pessoa_id: str
-    nome: str
+    status: str
+    presente: bool
+    recognition_result: str
     registrado_em: str
-    presente: bool = True

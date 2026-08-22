@@ -1,87 +1,125 @@
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
-from models import Pessoa, Registro, Sala, Sessao, Turma
+import repositories
+from models import Pessoa, Registro, Sessao
 from repositories import (
     PESSOAS_CABECALHO,
     REGISTROS_CABECALHO,
-    SALAS_CABECALHO,
     SESSOES_CABECALHO,
-    TURMAS_CABECALHO,
     ler_pessoas,
     ler_registros,
-    ler_salas,
     ler_sessoes,
-    ler_turmas,
     salvar_pessoas,
     salvar_registros,
-    salvar_salas,
     salvar_sessoes,
-    salvar_turmas,
 )
 
 
-def _ler_linhas(caminho: Path) -> list[list[str]]:
-    return [linha.split(",") for linha in caminho.read_text(encoding="utf-8").splitlines()]
+def _ler_primeira_linha(caminho: Path) -> list[str]:
+    return caminho.read_text(encoding="utf-8").splitlines()[0].split(",")
 
 
-def test_missing_files_create_headers(tmp_path: Path) -> None:
-    assert ler_pessoas(tmp_path) == []
-    assert ler_turmas(tmp_path) == []
-    assert ler_salas(tmp_path) == []
-    assert ler_sessoes(tmp_path) == []
-    assert ler_registros(tmp_path) == []
+def test_default_storage_isolated_from_legacy_registros_csv_and_creates_header_atomically(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    legado = tmp_path / "registros.csv"
+    legado.write_text("legacy,behavior\n", encoding="utf-8")
 
-    assert _ler_linhas(tmp_path / "pessoas.csv")[0] == PESSOAS_CABECALHO
-    assert _ler_linhas(tmp_path / "turmas.csv")[0] == TURMAS_CABECALHO
-    assert _ler_linhas(tmp_path / "salas.csv")[0] == SALAS_CABECALHO
-    assert _ler_linhas(tmp_path / "sessoes.csv")[0] == SESSOES_CABECALHO
-    assert _ler_linhas(tmp_path / "registros.csv")[0] == REGISTROS_CABECALHO
+    replace_calls: list[tuple[Path, Path]] = []
+    real_replace = repositories.os.replace
+
+    def tracking_replace(src: str | bytes, dst: str | bytes) -> None:
+        replace_calls.append((Path(src), Path(dst)))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(repositories.os, "replace", tracking_replace)
+
+    registros = ler_registros()
+
+    assert registros == []
+    assert legado.read_text(encoding="utf-8") == "legacy,behavior\n"
+
+    destino = Path("database") / "presenca_local" / "registros.csv"
+    canonical = tmp_path / destino
+    assert canonical.exists()
+    assert _ler_primeira_linha(canonical) == REGISTROS_CABECALHO
+    assert replace_calls and replace_calls[-1][1] == destino
 
 
-def test_round_trip_pessoas_com_acento(tmp_path: Path) -> None:
+def test_pessoa_round_trip_preserves_required_fields_and_fotos(tmp_path: Path) -> None:
     pessoas = [
-        Pessoa(id="p1", nome="João da Silva", turma_id="t1", matricula="123", ativo=True),
-        Pessoa(id="p2", nome="Ana Vitória", turma_id="t2", matricula="456", ativo=False),
+        Pessoa(
+            identificador="p-1",
+            nome="João da Silva",
+            categoria="aluno",
+            turma_ou_setor="Turma A",
+            ativo=True,
+            fotos=["pasta/joao-01.jpg", "pasta/joao-02.jpg"],
+        ),
+        Pessoa(
+            identificador="p-2",
+            nome="Ana Vitória",
+            categoria="funcionário",
+            turma_ou_setor="RH",
+            ativo=False,
+            fotos=[],
+        ),
     ]
 
     salvar_pessoas(pessoas, tmp_path)
 
     assert ler_pessoas(tmp_path) == pessoas
-    assert "João da Silva" in (tmp_path / "pessoas.csv").read_text(encoding="utf-8")
+
+    csv_path = tmp_path / "pessoas.csv"
+    assert _ler_primeira_linha(csv_path) == PESSOAS_CABECALHO
+    assert "João da Silva" in csv_path.read_text(encoding="utf-8")
 
 
-def test_round_trip_todas_as_entidades(tmp_path: Path) -> None:
-    turmas = [Turma(id="t1", nome="Turma A", ano_letivo="2026", descricao="Primeiro ciclo")]
-    salas = [Sala(id="s1", nome="Sala 101", capacidade=30, local="Bloco B")]
+def test_sessao_round_trip_allows_open_session(tmp_path: Path) -> None:
     sessoes = [
         Sessao(
-            id="ss1",
-            turma_id="t1",
-            sala_id="s1",
-            inicio="2026-08-22T08:00:00",
-            fim="2026-08-22T09:00:00",
-            ativa=True,
+            identificador="s-1",
+            tipo_operacao="chamada",
+            sala="Sala 101",
+            turma_ou_setor="Turma A",
+            responsavel_id="p-9",
+            inicio_data="2026-08-22",
+            inicio_hora="08:00:00",
+            fim_data=None,
+            fim_hora=None,
         )
     ]
+
+    salvar_sessoes(sessoes, tmp_path)
+
+    assert ler_sessoes(tmp_path) == sessoes
+
+    csv_path = tmp_path / "sessoes.csv"
+    assert _ler_primeira_linha(csv_path) == SESSOES_CABECALHO
+    assert csv.DictReader(csv_path.open(encoding="utf-8")).__next__()["fim_data"] == ""
+
+
+def test_registro_round_trip_preserves_recognition_result(tmp_path: Path) -> None:
     registros = [
         Registro(
-            id="r1",
-            sessao_id="ss1",
-            pessoa_id="p1",
-            nome="João da Silva",
-            registrado_em="2026-08-22T08:01:00",
+            identificador="r-1",
+            sessao_id="s-1",
+            pessoa_id="p-1",
+            status="confirmado",
             presente=True,
+            recognition_result='{"score": 0.92, "identity": "João da Silva"}',
+            registrado_em="2026-08-22T08:01:00",
         )
     ]
 
-    salvar_turmas(turmas, tmp_path)
-    salvar_salas(salas, tmp_path)
-    salvar_sessoes(sessoes, tmp_path)
     salvar_registros(registros, tmp_path)
 
-    assert ler_turmas(tmp_path) == turmas
-    assert ler_salas(tmp_path) == salas
-    assert ler_sessoes(tmp_path) == sessoes
     assert ler_registros(tmp_path) == registros
+
+    csv_path = tmp_path / "registros.csv"
+    assert "recognition_result" in _ler_primeira_linha(csv_path)
