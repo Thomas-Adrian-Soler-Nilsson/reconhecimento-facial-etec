@@ -1,0 +1,1 @@
+"""Pontos de entrada para uso do sistema pelo terminal."""

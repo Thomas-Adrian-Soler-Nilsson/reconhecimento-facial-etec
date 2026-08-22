@@ -1,15 +1,17 @@
-import cv2
 import os
+
+import cv2
 from deepface import DeepFace
 
 DB_PATH = "database"
 MODEL_NAME = "Facenet"
 DETECTOR_BACKEND = "mtcnn"
-PROCESSAR_A_CADA_N_FRAMES = 15  # ajuste: maior = mais rápido, porém atualiza menos
+PROCESSAR_A_CADA_N_FRAMES = 15
+
 
 def reconhecer_webcam():
     if not os.path.exists(DB_PATH) or not os.listdir(DB_PATH):
-        print(f"Pasta '{DB_PATH}' vazia ou não existe. Cadastre pessoas primeiro com cadastrar.py")
+        print(f"Pasta '{DB_PATH}' vazia ou não existe. Cadastre pessoas primeiro com python -m scripts.cadastrar")
         return
 
     cap = cv2.VideoCapture(0)
@@ -31,7 +33,6 @@ def reconhecer_webcam():
 
         frame_count += 1
 
-        # Só roda o reconhecimento pesado a cada N frames
         if frame_count % PROCESSAR_A_CADA_N_FRAMES == 0:
             try:
                 resultados = DeepFace.find(
@@ -55,16 +56,16 @@ def reconhecer_webcam():
                 nome_detectado = "Desconhecido"
                 cor = (0, 0, 255)
 
-        # Desenha o último resultado conhecido em TODOS os frames (fluido)
         cv2.putText(frame, nome_detectado, (30, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, cor, 2)
 
         cv2.imshow("Reconhecimento Facial", frame)
-        if cv2.waitKey(1) & 0xFF == 27:  # ESC
+        if cv2.waitKey(1) & 0xFF == 27:
             break
 
     cap.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     reconhecer_webcam()

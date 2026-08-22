@@ -1,6 +1,5 @@
 import os
-import csv
-from datetime import datetime, date
+from datetime import datetime
 
 import cv2
 import customtkinter as ctk
@@ -11,11 +10,10 @@ from iconipy import IconFactory
 
 
 import core
-from ui.components import botao, painel, fonte
-from ui.theme import CORES
+from ui.components import botao, painel as criar_painel
+from ui.theme import CORES, configurar_tema
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
+configurar_tema()
 
 icon_factory = IconFactory(icon_set="lucide", icon_size=22, font_color="white")
 
@@ -33,10 +31,26 @@ def _exibir_frame(video_label, frame):
     video_label.configure(image=imagem_tk)
 
 
+def _carregar_logo(caminho, tamanho=(180, 90)):
+    if not caminho or not os.path.exists(caminho):
+        return None
+    try:
+        imagem = Image.open(caminho)
+        return ctk.CTkImage(light_image=imagem, dark_image=imagem, size=tamanho)
+    except (OSError, ValueError):
+        return None
+
+
 COR_SUCESSO = CORES["sucesso"]
 COR_ALERTA = CORES["alerta"]
 COR_ERRO = CORES["erro"]
 COR_NEUTRA = CORES["neutra"]
+COR_TEXTO = CORES["texto"]
+COR_FUNDO = CORES["fundo"]
+COR_PAINEL = CORES["painel"]
+COR_LISTA = CORES["painel_secundario"]
+COR_SELECAO = CORES["selecao"]
+COR_HOVER = CORES["hover"]
 
 
 def _sem_sala_label(cfg):
@@ -48,6 +62,7 @@ class App(ctk.CTk):
         super().__init__()
 
         self.config_dados = core.carregar_config()
+        configurar_tema(self.config_dados.get("tema", "Claro"))
 
         self.title("Sistema de Reconhecimento Facial")
         self.geometry("1150x700")
@@ -69,12 +84,12 @@ class App(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0)
+        self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0, fg_color=CORES["sidebar"])
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-        self.sidebar.grid_rowconfigure(9, weight=1)
+        self.sidebar.grid_rowconfigure(10, weight=1)
         self._popular_sidebar()
 
-        self.container = ctk.CTkFrame(self, corner_radius=0, fg_color="#1a1a1a")
+        self.container = ctk.CTkFrame(self, corner_radius=0, fg_color=COR_FUNDO)
         self.container.grid(row=0, column=1, sticky="nsew")
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
@@ -88,7 +103,7 @@ class App(ctk.CTk):
             self.tela_atual.destroy()
 
         for tela, btn in self.botoes_nav.items():
-            btn.configure(fg_color="#2b6cb0" if tela == classe_tela else "transparent")
+            btn.configure(fg_color=COR_SELECAO if tela == classe_tela else "transparent")
 
         self.tela_atual = classe_tela(self.container, self)
         self.tela_atual.grid(row=0, column=0, sticky="nsew")
@@ -97,16 +112,21 @@ class App(ctk.CTk):
         """Atualiza nome/tipo de organização na sidebar (após mudar em Configurações)."""
         for widget in self.sidebar.winfo_children():
             widget.destroy()
-        self.sidebar.grid_rowconfigure(9, weight=1)
+        self.sidebar.grid_rowconfigure(10, weight=1)
         self._popular_sidebar()
 
     def _popular_sidebar(self):
         # separado de _montar_layout para poder recriar sem duplicar o container
-        titulo = ctk.CTkLabel(
-            self.sidebar, text=self.config_dados["nome_organizacao"],
-            font=ctk.CTkFont(size=18, weight="bold"), wraplength=190, justify="left"
-        )
-        titulo.grid(row=0, column=0, padx=20, pady=(24, 4), sticky="w")
+        logo = _carregar_logo(self.config_dados.get("logo_path"))
+        if logo:
+            self.logo_sidebar = logo
+            cabecalho = ctk.CTkLabel(self.sidebar, text="", image=logo)
+        else:
+            cabecalho = ctk.CTkLabel(
+                self.sidebar, text=self.config_dados["nome_organizacao"],
+                font=ctk.CTkFont(size=18, weight="bold"), wraplength=190, justify="left"
+            )
+        cabecalho.grid(row=0, column=0, padx=20, pady=(24, 4), sticky="w")
 
         subtitulo = ctk.CTkLabel(
             self.sidebar, text=f"Reconhecimento Facial · {self.config_dados['tipo_organizacao']}",
@@ -117,6 +137,7 @@ class App(ctk.CTk):
         botoes = [
             ("Início", TelaInicio, "house"),
             ("Cadastrar Pessoa", TelaCadastro, "user-plus"),
+            ("Pessoas Cadastradas", TelaPessoas, "users-round"),
             ("Salas / Turmas", TelaSalas, "school"),
             ("Registrar Presença", TelaRegistroIndividual, "circle-check"),
             ("Chamada em Grupo", TelaRegistroGrupo, "users"),
@@ -193,7 +214,7 @@ class TelaInicio(ctk.CTkFrame):
         registros = core.ler_registros()
         salas = core.carregar_salas()
 
-        self._card(0, "Pessoas cadastradas", str(len(pessoas)), "#2b6cb0")
+        self._card(0, "Pessoas cadastradas", str(len(pessoas)), COR_SELECAO)
         self._card(1, "Registros no total", str(len(registros)), COR_SUCESSO)
         self._card(2, f"{cfg.get('termo_sala', 'Turma')}s cadastradas", str(len(salas)), COR_ALERTA)
 
@@ -210,7 +231,7 @@ class TelaInicio(ctk.CTkFrame):
               icone=_icone("chart-no-axes-column")).grid(row=4, column=2, padx=(10, 30), pady=6, sticky="ew")
 
     def _card(self, coluna, titulo, valor, cor):
-        card = painel(self)
+        card = criar_painel(self)
         card.grid(row=2, column=coluna, padx=(30 if coluna == 0 else 10, 30 if coluna == 2 else 10),
                   pady=6, sticky="ew")
         ctk.CTkLabel(card, text=titulo, font=ctk.CTkFont(size=13), text_color=COR_NEUTRA
@@ -248,34 +269,34 @@ class TelaCadastro(ctk.CTkFrame):
         self.video_label.grid(row=2, column=0, padx=(30, 10), pady=10, sticky="nsew")
         self.grid_rowconfigure(2, weight=1)
 
-        painel = ctk.CTkFrame(self, corner_radius=12, fg_color="#242424")
-        painel.grid(row=2, column=1, padx=(10, 30), pady=10, sticky="new")
+        formulario = criar_painel(self)
+        formulario.grid(row=2, column=1, padx=(10, 30), pady=10, sticky="new")
 
-        ctk.CTkLabel(painel, text="Nome completo", font=ctk.CTkFont(size=13)
-                     ).pack(anchor="w", padx=20, pady=(20, 4))
-        self.entry_nome = ctk.CTkEntry(painel, placeholder_text="Ex: Thomas Adrian", height=38)
+        ctk.CTkLabel(formulario, text="Nome completo", font=ctk.CTkFont(size=13)
+                 ).pack(anchor="w", padx=20, pady=(20, 4))
+        self.entry_nome = ctk.CTkEntry(formulario, placeholder_text="Ex: Thomas Adrian", height=38)
         self.entry_nome.pack(fill="x", padx=20)
 
-        ctk.CTkLabel(painel, text=f"{termo_sala} (opcional)", font=ctk.CTkFont(size=13)
+        ctk.CTkLabel(formulario, text=f"{termo_sala} (opcional)", font=ctk.CTkFont(size=13)
                      ).pack(anchor="w", padx=20, pady=(16, 4))
         salas_disponiveis = [""] + core.carregar_salas()
-        self.combo_sala = ctk.CTkOptionMenu(painel, values=salas_disponiveis or [""])
+        self.combo_sala = ctk.CTkOptionMenu(formulario, values=salas_disponiveis or [""])
         self.combo_sala.pack(fill="x", padx=20)
 
-        ctk.CTkLabel(painel, text="RA / Matrícula (opcional)", font=ctk.CTkFont(size=13)
+        ctk.CTkLabel(formulario, text="RA / Matrícula (opcional)", font=ctk.CTkFont(size=13)
                      ).pack(anchor="w", padx=20, pady=(16, 4))
-        self.entry_ra = ctk.CTkEntry(painel, height=38)
+        self.entry_ra = ctk.CTkEntry(formulario, height=38)
         self.entry_ra.pack(fill="x", padx=20)
 
-        self.btn_capturar = ctk.CTkButton(painel, text="Capturar foto", image=_icone("camera"), compound="left", height=42,
+        self.btn_capturar = ctk.CTkButton(formulario, text="Capturar foto", image=_icone("camera"), compound="left", height=42,
                                            command=self._capturar_foto)
         self.btn_capturar.pack(fill="x", padx=20, pady=(20, 8))
 
-        self.label_contagem = ctk.CTkLabel(painel, text="Fotos tiradas nesta sessão: 0",
+        self.label_contagem = ctk.CTkLabel(formulario, text="Fotos tiradas nesta sessão: 0",
                                             text_color=COR_NEUTRA)
         self.label_contagem.pack(anchor="w", padx=20, pady=(0, 20))
 
-        self.label_status = ctk.CTkLabel(painel, text="", wraplength=260, justify="left")
+        self.label_status = ctk.CTkLabel(formulario, text="", wraplength=260, justify="left")
         self.label_status.pack(anchor="w", padx=20, pady=(0, 20))
 
     def _capturar_foto(self):
@@ -334,7 +355,7 @@ class TelaSalas(ctk.CTkFrame):
         ctk.CTkLabel(self, text=f"Gerencie as {termo_sala.lower()}s usadas no cadastro e nos relatórios.",
                      text_color=COR_NEUTRA).grid(row=1, column=0, padx=30, pady=(0, 20), sticky="w")
 
-        painel_add = ctk.CTkFrame(self, fg_color="#242424", corner_radius=12)
+        painel_add = criar_painel(self)
         painel_add.grid(row=2, column=0, padx=30, pady=(0, 16), sticky="ew")
         painel_add.grid_columnconfigure(0, weight=1)
 
@@ -345,7 +366,7 @@ class TelaSalas(ctk.CTkFrame):
         ctk.CTkButton(painel_add, text="Adicionar", image=_icone("plus"), compound="left", width=140, height=38,
                        command=self._adicionar).grid(row=0, column=1, padx=(0, 16), pady=16)
 
-        self.lista_frame = ctk.CTkScrollableFrame(self, fg_color="#1f1f1f")
+        self.lista_frame = ctk.CTkScrollableFrame(self, fg_color=COR_LISTA)
         self.lista_frame.grid(row=3, column=0, padx=30, pady=(0, 30), sticky="nsew")
         self.lista_frame.grid_columnconfigure(0, weight=1)
 
@@ -381,7 +402,7 @@ class TelaSalas(ctk.CTkFrame):
             return
 
         for i, sala in enumerate(salas):
-            linha = ctk.CTkFrame(self.lista_frame, fg_color="#242424", corner_radius=10)
+            linha = ctk.CTkFrame(self.lista_frame, fg_color=COR_PAINEL, corner_radius=10)
             linha.grid(row=i, column=0, padx=4, pady=4, sticky="ew")
             linha.grid_columnconfigure(0, weight=1)
 
@@ -394,6 +415,86 @@ class TelaSalas(ctk.CTkFrame):
                           border_width=1, text_color=COR_ERRO, border_color=COR_ERRO,
                           command=lambda s=sala: self._remover(s)
                           ).grid(row=0, column=2, padx=16, pady=12)
+
+
+# ===========================================================================
+# Tela: Pessoas cadastradas
+# ===========================================================================
+
+class TelaPessoas(ctk.CTkFrame):
+    def __init__(self, master, app):
+        super().__init__(master, fg_color="transparent")
+        self.app = app
+        self._montar()
+
+    def _montar(self):
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+
+        cfg = self.app.config_dados
+        termo_pessoa = cfg.get("termo_pessoa", "Pessoa").split("/")[0]
+        termo_sala = cfg.get("termo_sala", "Turma")
+
+        ctk.CTkLabel(
+            self, text=f"{termo_pessoa}s cadastrados",
+            font=ctk.CTkFont(size=24, weight="bold")
+        ).grid(row=0, column=0, padx=30, pady=(30, 4), sticky="w")
+        ctk.CTkLabel(
+            self, text=f"Consulte e remova {termo_pessoa.lower()}s cadastrados no sistema.",
+            text_color=COR_NEUTRA
+        ).grid(row=1, column=0, padx=30, pady=(0, 20), sticky="w")
+
+        self.lista_frame = ctk.CTkScrollableFrame(self, fg_color=COR_LISTA)
+        self.lista_frame.grid(row=2, column=0, padx=30, pady=(0, 30), sticky="nsew")
+        self.lista_frame.grid_columnconfigure(0, weight=1)
+        self._atualizar_lista(termo_sala)
+
+    def _atualizar_lista(self, termo_sala=None):
+        for widget in self.lista_frame.winfo_children():
+            widget.destroy()
+
+        cfg = self.app.config_dados
+        termo_sala = termo_sala or cfg.get("termo_sala", "Turma")
+        pessoas = core.listar_pessoas()
+
+        if not pessoas:
+            ctk.CTkLabel(
+                self.lista_frame, text="Nenhuma pessoa cadastrada ainda.",
+                text_color=COR_NEUTRA
+            ).grid(row=0, column=0, padx=16, pady=16, sticky="w")
+            return
+
+        for linha_numero, pessoa in enumerate(pessoas):
+            linha = ctk.CTkFrame(self.lista_frame, fg_color=COR_PAINEL, corner_radius=10)
+            linha.grid(row=linha_numero, column=0, padx=4, pady=4, sticky="ew")
+            linha.grid_columnconfigure(0, weight=1)
+
+            detalhes = (
+                f"{pessoa['nome']}\n"
+                f"{termo_sala}: {pessoa.get('sala') or '-'}  |  "
+                f"RA: {pessoa.get('ra') or '-'}  |  "
+                f"Fotos: {pessoa['quantidade_fotos']}"
+            )
+            ctk.CTkLabel(
+                linha, text=detalhes, justify="left", anchor="w",
+                font=ctk.CTkFont(size=14)
+            ).grid(row=0, column=0, padx=16, pady=12, sticky="w")
+            ctk.CTkButton(
+                linha, text="Excluir", image=_icone("trash-2"), compound="left",
+                width=110, height=34, fg_color="transparent",
+                border_width=1, text_color=COR_ERRO, border_color=COR_ERRO,
+                command=lambda identificador=pessoa["identificador"], nome=pessoa["nome"]:
+                    self._excluir(identificador, nome)
+            ).grid(row=0, column=1, padx=16, pady=12)
+
+    def _excluir(self, identificador, nome):
+        confirmar = messagebox.askyesno(
+            "Excluir pessoa",
+            f"Excluir '{nome}'? As fotos serão removidas, mas o histórico de presença será preservado."
+        )
+        if confirmar and core.excluir_pessoa(identificador):
+            self._atualizar_lista()
+            messagebox.showinfo("Excluído", f"'{nome}' foi removido do cadastro.")
 
 
 # ==========================================================================
@@ -424,7 +525,7 @@ class TelaRegistroIndividual(ctk.CTkFrame):
         self.video_label = ctk.CTkLabel(self, text="", fg_color="black", corner_radius=10)
         self.video_label.grid(row=2, column=0, padx=(30, 10), pady=10, sticky="nsew")
 
-        painel = ctk.CTkFrame(self, corner_radius=12, fg_color="#242424")
+        painel = criar_painel(self)
         painel.grid(row=2, column=1, padx=(10, 30), pady=10, sticky="new")
 
         ctk.CTkLabel(painel, text=f"{termo_sala} (opcional)", font=ctk.CTkFont(size=13)
@@ -508,7 +609,7 @@ class TelaRegistroGrupo(ctk.CTkFrame):
         self.video_label = ctk.CTkLabel(self, text="", fg_color="black", corner_radius=10)
         self.video_label.grid(row=2, column=0, padx=(30, 10), pady=10, sticky="nsew")
 
-        painel = ctk.CTkFrame(self, corner_radius=12, fg_color="#242424")
+        painel = criar_painel(self)
         painel.grid(row=2, column=1, padx=(10, 30), pady=10, sticky="new")
 
         ctk.CTkLabel(painel, text=f"{termo_sala} desta chamada", font=ctk.CTkFont(size=13)
@@ -518,7 +619,7 @@ class TelaRegistroGrupo(ctk.CTkFrame):
         self.combo_sala.pack(fill="x", padx=20)
 
         self.btn_iniciar = ctk.CTkButton(painel, text="Iniciar chamada", image=_icone("play"), compound="left", height=44,
-                                          fg_color=COR_SUCESSO, hover_color="#237a3d",
+                                          fg_color=COR_SELECAO, hover_color=COR_HOVER,
                                           command=self._alternar_sessao)
         self.btn_iniciar.pack(fill="x", padx=20, pady=(16, 10))
 
@@ -539,14 +640,14 @@ class TelaRegistroGrupo(ctk.CTkFrame):
             self._atualizar_lista()
             self.app.iniciar_camera()
             self.combo_sala.configure(state="disabled")
-            self.btn_iniciar.configure(text="Encerrar chamada", image=_icone("square"), fg_color=COR_ERRO, hover_color="#8f2b20")
+            self.btn_iniciar.configure(text="Encerrar chamada", image=_icone("square"), fg_color=COR_ERRO, hover_color=COR_HOVER)
             self.label_status.configure(text="Sessão em andamento...", text_color=COR_SUCESSO)
             self._loop_reconhecimento()
         else:
             self.sessao_ativa = False
             self.app.parar_camera()
             self.combo_sala.configure(state="normal")
-            self.btn_iniciar.configure(text="Iniciar chamada", image=_icone("play"), fg_color=COR_SUCESSO, hover_color="#237a3d")
+            self.btn_iniciar.configure(text="Iniciar chamada", image=_icone("play"), fg_color=COR_SELECAO, hover_color=COR_HOVER)
             self.label_status.configure(
                 text=f"Sessão encerrada. Total: {len(self.registrados_na_sessao)} pessoa(s).",
                 text_color=COR_NEUTRA
@@ -607,7 +708,7 @@ class TelaRelatorios(ctk.CTkFrame):
                      ).grid(row=0, column=0, padx=30, pady=(30, 4), sticky="w")
 
         # ---- Painel de filtros ----
-        painel_filtros = ctk.CTkFrame(self, fg_color="#242424", corner_radius=12)
+        painel_filtros = criar_painel(self)
         painel_filtros.grid(row=1, column=0, padx=30, pady=(10, 10), sticky="ew")
         painel_filtros.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
@@ -776,7 +877,7 @@ class TelaImportarCSV(ctk.CTkFrame):
         )
         aviso.grid(row=1, column=0, padx=30, pady=(0, 20), sticky="w")
 
-        painel = ctk.CTkFrame(self, fg_color="#242424", corner_radius=12)
+        painel = criar_painel(self)
         painel.grid(row=2, column=0, padx=30, pady=0, sticky="ew")
         painel.grid_columnconfigure(1, weight=1)
 
@@ -823,7 +924,7 @@ class TelaImportarCSV(ctk.CTkFrame):
             return
 
         self.caminho_csv = caminho
-        self.label_arquivo.configure(text=os.path.basename(caminho), text_color="white")
+        self.label_arquivo.configure(text=os.path.basename(caminho), text_color=COR_TEXTO)
         self._atualizar_colunas()
 
     def _atualizar_colunas(self):
@@ -911,7 +1012,7 @@ class TelaConfiguracoes(ctk.CTkFrame):
         ctk.CTkLabel(self, text="Configurações", font=ctk.CTkFont(size=24, weight="bold")
                      ).grid(row=0, column=0, padx=30, pady=(30, 20), sticky="w")
 
-        painel = ctk.CTkFrame(self, corner_radius=12, fg_color="#242424")
+        painel = criar_painel(self)
         painel.grid(row=1, column=0, padx=30, pady=0, sticky="ew")
 
         cfg = self.app.config_dados
@@ -928,6 +1029,12 @@ class TelaConfiguracoes(ctk.CTkFrame):
         self.combo_tipo.set(cfg["tipo_organizacao"])
         self.combo_tipo.pack(fill="x", padx=20)
 
+        ctk.CTkLabel(painel, text="Tema da interface", font=ctk.CTkFont(size=13)
+                 ).pack(anchor="w", padx=20, pady=(16, 4))
+        self.combo_tema = ctk.CTkOptionMenu(painel, values=["Claro", "Escuro"])
+        self.combo_tema.set(cfg.get("tema", "Claro"))
+        self.combo_tema.pack(fill="x", padx=20)
+
         ctk.CTkLabel(painel, text="Como chamar as 'salas' (ex: Turma, Setor, Departamento)",
                      font=ctk.CTkFont(size=13)).pack(anchor="w", padx=20, pady=(16, 4))
         self.entry_termo_sala = ctk.CTkEntry(painel, height=38)
@@ -943,7 +1050,7 @@ class TelaConfiguracoes(ctk.CTkFrame):
         ctk.CTkButton(painel, text="Salvar configurações", image=_icone("save"), compound="left", height=42, command=self._salvar
                        ).pack(fill="x", padx=20, pady=(24, 20))
 
-        painel2 = ctk.CTkFrame(self, corner_radius=12, fg_color="#242424")
+        painel2 = criar_painel(self)
         painel2.grid(row=2, column=0, padx=30, pady=20, sticky="ew")
 
         ctk.CTkLabel(painel2, text="Manutenção", font=ctk.CTkFont(size=15, weight="bold")
@@ -973,10 +1080,12 @@ class TelaConfiguracoes(ctk.CTkFrame):
 
         self.app.config_dados["nome_organizacao"] = self.entry_nome.get().strip() or "Minha Instituição"
         self.app.config_dados["tipo_organizacao"] = self.combo_tipo.get()
+        self.app.config_dados["tema"] = self.combo_tema.get()
         self.app.config_dados["termo_sala"] = self.entry_termo_sala.get().strip() or "Turma"
         self.app.config_dados["minutos_entre_registros"] = minutos
         core.salvar_config(self.app.config_dados)
 
+        configurar_tema(self.app.config_dados["tema"])
         self.app.recarregar_cabecalho()
         messagebox.showinfo("Salvo", "Configurações salvas com sucesso.")
 

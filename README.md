@@ -27,6 +27,8 @@ Sistema de reconhecimento facial com interface gráfica, feito com Python, OpenC
 ```
 projeto_facial/
 ├── database/                 # fotos das pessoas cadastradas (dados locais, ignorados pelo Git)
+├── img/                      # imagens da interface
+│   └── logo.png              # logo exibida na sidebar
 ├── ui/                       # tema e componentes reutilizáveis da interface
 │   ├── __init__.py           # definição do pacote de interface
 │   ├── theme.py              # cores, fontes e dimensões visuais
@@ -39,10 +41,12 @@ projeto_facial/
 ├── core.py                   # lógica compartilhada: reconhecimento e regras da aplicação
 ├── db.py                     # persistência e consultas do banco SQLite
 ├── models.py                 # modelos de dados do sistema
-├── cadastrar.py              # cadastro de pessoas via terminal
-├── reconhecer.py             # reconhecimento facial contínuo via terminal
-├── ponto.py                  # registro individual de presença via terminal
-├── chamada.py                # chamada em grupo via terminal
+├── scripts/                  # pontos de entrada para uso pelo terminal
+│   ├── __init__.py
+│   ├── cadastrar.py          # cadastro de pessoas
+│   ├── reconhecer.py         # reconhecimento facial contínuo
+│   ├── ponto.py              # registro individual de presença
+│   └── chamada.py            # chamada em grupo
 ├── config.json               # configurações locais da organização
 ├── sistema_presenca.db       # banco SQLite local (gerado automaticamente)
 ├── registros.csv             # arquivo de importação/exportação de registros
@@ -51,7 +55,9 @@ projeto_facial/
 └── README.md                 # documentação do projeto
 ```
 
-> Os scripts de linha de comando (`cadastrar.py`, `reconhecer.py`, `ponto.py`, `chamada.py`) continuam funcionando e são úteis para testes rápidos, mas o `app.py` reúne tudo isso numa única interface gráfica e é a forma recomendada de uso.
+A logo da organização é carregada por padrão de `img/logo.png`. Para usar outra imagem, altere o campo `logo_path` no `config.json`.
+
+> Os scripts de linha de comando em `scripts/` continuam funcionando e são úteis para testes rápidos, mas o `app.py` reúne tudo isso numa única interface gráfica e é a forma recomendada de uso.
 
 ## Requisitos
 
@@ -125,12 +131,13 @@ Isso abre a janela principal do sistema, com um menu lateral:
 
 - **🏠 Início** — visão geral: quantas pessoas estão cadastradas, quantos registros já existem.
 - **➕ Cadastrar Pessoa** — abre a câmera, digite o nome e clique em "Capturar foto" (repita 3–5 vezes). O cache de reconhecimento é limpo automaticamente a cada novo cadastro.
+- **👥 Pessoas Cadastradas** — lista nome, sala/turma, RA/matrícula e quantidade de fotos, permitindo excluir um cadastro com confirmação.
 - **🏫 Salas / Turmas** — cadastra e remove salas ou turmas usadas nos registros.
 - **✅ Registrar Presença** — modo individual: a pessoa se posiciona na câmera, escolhe "Entrada" ou "Saída" e clica em Registrar. Ideal para um totem ou recepção.
 - **👥 Chamada em Grupo** — modo contínuo: clique em "Iniciar chamada" e a câmera reconhece automaticamente cada pessoa que passar, registrando uma vez por sessão. Clique em "Encerrar chamada" ao final. Ideal para início de aula/reunião.
 - **📊 Relatórios** — lista todos os registros salvos (nome, tipo, data, hora), com botão de atualizar.
 - **📥 Importar Pessoas (CSV)** — importa nomes, salas e RA/matrícula de um arquivo CSV, com mapeamento manual das colunas.
-- **⚙️ Configurações** — define o nome da instituição/empresa, se é "Escola" ou "Empresa" (aparece no cabeçalho), o intervalo mínimo entre registros repetidos, e permite limpar o cache de reconhecimento manualmente.
+- **⚙️ Configurações** — define o nome da instituição/empresa, se é "Escola" ou "Empresa" (aparece no cabeçalho), o tema claro/escuro, o intervalo mínimo entre registros repetidos, e permite limpar o cache de reconhecimento manualmente.
 
 > **Primeira execução:** assim como nos scripts de terminal, o DeepFace baixa os pesos dos modelos na primeira vez que uma foto é processada — pode levar um tempinho sem feedback visual, é normal.
 
@@ -146,7 +153,7 @@ venv\Scripts\activate
 ### 1. Cadastrar uma pessoa
 
 ```powershell
-python cadastrar.py
+python -m scripts.cadastrar
 ```
 
 - Digite o nome da pessoa quando solicitado.
@@ -159,7 +166,7 @@ As fotos são salvas em `database/<nome>/`.
 ### 2. Reconhecer rostos ao vivo
 
 ```powershell
-python reconhecer.py
+python -m scripts.reconhecer
 ```
 
 - A janela da webcam abre mostrando o nome da pessoa reconhecida (verde) ou "Desconhecido" (vermelho).
@@ -167,7 +174,7 @@ python reconhecer.py
 
 > **Primeira execução:** o DeepFace baixa automaticamente os pesos dos modelos (Facenet, MTCNN etc.) na primeira vez que reconhece um rosto. Isso pode levar de alguns segundos a poucos minutos, sem barra de progresso — é normal parecer "travado".
 
-## Configurações ajustáveis (dentro de `reconhecer.py`)
+## Configurações ajustáveis (dentro de `scripts/reconhecer.py`)
 
 ```python
 MODEL_NAME = "Facenet"           # modelo de reconhecimento: Facenet, VGG-Face, ArcFace, Dlib...
@@ -195,7 +202,7 @@ del database\*.pkl
 | `ResolutionImpossible` ao instalar deepface | Python muito novo (3.13/3.14), sem build de TensorFlow disponível | Use Python 3.11 no venv |
 | `ValueError: ...requires tf-keras package` | TensorFlow 2.x usa Keras 3 por padrão | `pip install tf-keras` |
 | `Confirm that opencv is installed... haarcascade_frontalface_default.xml` | Pacote `opencv-python` corrompido/incompleto (ex: versão `5.x`) | Reinstale: `pip uninstall opencv-python opencv-python-headless -y` seguido de `pip install opencv-python==4.10.0.84` |
-| Câmera travando muito | Reconhecimento rodando em todo frame | Ajuste `PROCESSAR_A_CADA_N_FRAMES` em `reconhecer.py` |
+| Câmera travando muito | Reconhecimento rodando em todo frame | Ajuste `PROCESSAR_A_CADA_N_FRAMES` em `scripts/reconhecer.py` |
 | Webcam não abre / tela preta | Índice de câmera errado ou em uso por outro app | Troque `cv2.VideoCapture(0)` para `cv2.VideoCapture(1)` |
 
 ## Próximos passos possíveis

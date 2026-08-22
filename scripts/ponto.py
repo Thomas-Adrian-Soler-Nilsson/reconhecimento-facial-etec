@@ -5,7 +5,7 @@ import core
 
 def ponto_webcam():
     if not core.listar_pessoas_cadastradas():
-        print("Nenhuma pessoa cadastrada ainda. Use cadastrar.py primeiro.")
+        print("Nenhuma pessoa cadastrada ainda. Use python -m scripts.cadastrar primeiro.")
         return
 
     cfg = core.carregar_config()
@@ -49,10 +49,9 @@ def ponto_webcam():
         cv2.imshow("Ponto - Reconhecimento Facial", frame)
         key = cv2.waitKey(1) & 0xFF
 
-        if key == 27:  # ESC
+        if key == 27:
             break
-
-        elif key == 32:  # ESPAÇO
+        elif key == 32:
             print("Identificando...")
             nome_chave = core.identificar_pessoa(frame, exigir_rosto=True)
 
@@ -60,12 +59,10 @@ def ponto_webcam():
                 mensagem = "Rosto nao reconhecido"
                 cor_mensagem = (0, 0, 255)
                 print("[X] Rosto não reconhecido / não cadastrado.")
-
             elif core.ja_registrado_recentemente(nome_chave, minutos, sala=sala or None):
                 mensagem = f"{nome_chave} ja registrado (aguarde)"
                 cor_mensagem = (0, 165, 255)
                 print(f"[!] {nome_chave} já registrado há menos de {minutos} min.")
-
             else:
                 core.registrar_presenca(nome_chave, tipo="Entrada", sala=sala)
                 mensagem = f"Presenca registrada: {nome_chave}"

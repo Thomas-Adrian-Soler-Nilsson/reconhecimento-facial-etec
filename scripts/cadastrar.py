@@ -23,9 +23,9 @@ def cadastrar_pessoa(nome_exibicao, sala=""):
         cv2.imshow(f"Cadastro - {nome_exibicao}", frame)
         key = cv2.waitKey(1) & 0xFF
 
-        if key == 27:  # ESC
+        if key == 27:
             break
-        elif key == 32:  # ESPAÇO
+        elif key == 32:
             caminho = core.salvar_foto_cadastro(nome_chave, frame)
             contador += 1
             print(f"[OK] Foto salva: {caminho}")
@@ -37,7 +37,6 @@ def cadastrar_pessoa(nome_exibicao, sala=""):
         print("Nenhuma foto foi salva.")
         return
 
-    # grava/atualiza nome de exibição e sala/turma no banco
     core.definir_pessoa_meta(nome_chave, nome_exibicao=nome_exibicao, sala=sala)
     core.limpar_cache_embeddings()
 

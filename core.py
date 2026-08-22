@@ -1,6 +1,7 @@
 import os
 import csv
 import json
+import shutil
 from datetime import datetime
 
 from deepface import DeepFace
@@ -18,7 +19,9 @@ CONFIG_PADRAO = {
     "tipo_organizacao": "Escola",   # "Escola" ou "Empresa"
     "termo_pessoa": "Aluno/Funcionário",
     "termo_sala": "Turma",          # "Turma" (escola) ou "Setor"/"Departamento" (empresa)
-    "minutos_entre_registros": 5
+    "minutos_entre_registros": 5,
+    "tema": "Claro",
+    "logo_path": "img/logo.png"
 }
 
 # garante que as tabelas existam assim que este módulo é importado
@@ -130,6 +133,29 @@ def listar_pessoas_cadastradas():
         nome for nome in os.listdir(DB_PATH)
         if os.path.isdir(os.path.join(DB_PATH, nome))
     ])
+
+
+def listar_pessoas(somente_ativas=True):
+    """Retorna os dados das pessoas cadastradas."""
+    pessoas = db.listar_pessoas(somente_ativas=somente_ativas)
+    for pessoa in pessoas:
+        pessoa["sala"] = obter_sala_pessoa(pessoa["nome_chave"])
+        pessoa["quantidade_fotos"] = contar_fotos(pessoa["nome_chave"])
+    return sorted(pessoas, key=lambda pessoa: pessoa["nome"].lower())
+
+
+def excluir_pessoa(identificador):
+    """Desativa a pessoa e remove suas fotos do banco de rostos."""
+    pessoa = db.obter_pessoa(identificador)
+    if not pessoa:
+        return False
+
+    db.desativar_pessoa(identificador)
+    pasta = os.path.join(DB_PATH, pessoa["nome_chave"])
+    if os.path.isdir(pasta):
+        shutil.rmtree(pasta)
+    limpar_cache_embeddings()
+    return True
 
 
 def contar_fotos(nome_chave):

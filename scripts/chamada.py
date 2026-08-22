@@ -7,7 +7,7 @@ PROCESSAR_A_CADA_N_FRAMES = 15
 
 def chamada_webcam():
     if not core.listar_pessoas_cadastradas():
-        print("Nenhuma pessoa cadastrada ainda. Use cadastrar.py primeiro.")
+        print("Nenhuma pessoa cadastrada ainda. Use python -m scripts.cadastrar primeiro.")
         return
 
     salas_existentes = core.carregar_salas()
@@ -47,11 +47,9 @@ def chamada_webcam():
             if nome_chave is None:
                 nome_atual = "Desconhecido"
                 cor_atual = (0, 0, 255)
-
             elif nome_chave in ja_registrados_na_sessao:
                 nome_atual = f"{nome_chave} (ja registrado)"
                 cor_atual = (0, 165, 255)
-
             else:
                 core.registrar_presenca(nome_chave, tipo="Chamada em grupo", sala=sala)
                 ja_registrados_na_sessao.add(nome_chave)
@@ -62,13 +60,11 @@ def chamada_webcam():
         cv2.rectangle(frame, (0, 0), (frame.shape[1], 40), (40, 40, 40), -1)
         cv2.putText(frame, f"Registrados nesta sessao: {len(ja_registrados_na_sessao)} | ESC = encerrar",
                     (10, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1)
-
         cv2.putText(frame, nome_atual, (20, 75),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.9, cor_atual, 2)
-
         cv2.imshow("Chamada - Reconhecimento Facial", frame)
 
-        if cv2.waitKey(1) & 0xFF == 27:  # ESC
+        if cv2.waitKey(1) & 0xFF == 27:
             break
 
     cap.release()
