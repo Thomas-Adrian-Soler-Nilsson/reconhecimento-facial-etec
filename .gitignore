@@ -1,0 +1,34 @@
+# Ambiente virtual
+venv/
+env/
+.venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Banco de rostos (dados pessoais/sensíveis - não versionar o conteúdo)
+database/*
+!database/.gitkeep
+
+# Cache de embeddings do DeepFace
+*.pkl
+
+# Registros de presença (dados sensíveis - não versionar)
+registros.csv
+
+# Configuração local (pode conter dados específicos da instalação)
+config.json
+
+# Pesos de modelos baixados pelo DeepFace (caso baixem para dentro do projeto)
+.deepface/
+
+# Arquivos de IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# Sistema operacional
+Thumbs.db
+desktop.ini
